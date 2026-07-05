@@ -55,14 +55,22 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
         run: |
-          touch signing.properties
-          echo keystore.password="$SIGNING_STORE_PASSWORD" > signing.properties
-          echo key.alias="$SIGNING_KEY_ALIAS" >> signing.properties
-          echo key.password="$SIGNING_KEY_PASSWORD" >> signing.properties
-            
-          echo "cat signing.properties"
-          cat signing.properties
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > release.keystore
+            echo "release.keystore restored from KEYSTORE_B64 secret"
+          fi
+          if [ -n "$SIGNING_STORE_PASSWORD" ]; then
+            {
+              echo keystore.password="$SIGNING_STORE_PASSWORD"
+              echo key.alias="$SIGNING_KEY_ALIAS"
+              echo key.password="$SIGNING_KEY_PASSWORD"
+            } > signing.properties
+            echo "signing.properties created, apk will be release-signed"
+          else
+            echo "signing secrets not set, apk will be debug-signed"
+          fi
 
       - name: Pre-release Build
         if: success()

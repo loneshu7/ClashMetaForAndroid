@@ -1,10 +1,12 @@
 package config
 
 import (
+	"errors"
 	"os"
 	P "path"
 	"runtime"
 	"strings"
+	"sync"
 
 	"cfa/native/app"
 
@@ -13,6 +15,25 @@ import (
 	"github.com/metacubex/mihomo/hub"
 	"github.com/metacubex/mihomo/log"
 )
+
+var (
+	loadedPathMutex sync.Mutex
+	loadedPath      string
+)
+
+func LoadedPath() string {
+	loadedPathMutex.Lock()
+	defer loadedPathMutex.Unlock()
+
+	return loadedPath
+}
+
+func setLoadedPath(path string) {
+	loadedPathMutex.Lock()
+	defer loadedPathMutex.Unlock()
+
+	loadedPath = path
+}
 
 func logDns(cfg *config.RawConfig) {
 	bytes, err := yaml.Marshal(&cfg.DNS)
@@ -80,9 +101,20 @@ func Load(path string) error {
 
 	app.ApplySubtitlePattern(rawCfg.ClashForAndroid.UiSubtitlePattern)
 
+	setLoadedPath(path)
+
 	runtime.GC()
 
 	return nil
+}
+
+func Reload() error {
+	path := LoadedPath()
+	if path == "" {
+		return errors.New("no profile loaded")
+	}
+
+	return Load(path)
 }
 
 func LoadDefault() {
@@ -92,4 +124,6 @@ func LoadDefault() {
 	}
 
 	hub.ApplyConfig(cfg)
+
+	setLoadedPath("")
 }
